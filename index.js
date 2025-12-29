@@ -1,67 +1,51 @@
-const { Telegraf } = require('telegraf');
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { Telegraf, Markup } = require('telegraf');
 const express = require('express');
 
-// ၁။ Express Server Setup (B4A Health Check အတွက် မဖြစ်မနေလိုအပ်ပါသည်)
+// ၁။ Server Setup (Back4App အတွက် မဖြစ်မနေလိုအပ်သည်)
 const app = express();
-const port = process.env.PORT || 8080; 
+const port = process.env.PORT || 8080;
+app.get('/', (req, res) => res.send('Selling Bot is Running!'));
+app.listen(port, () => console.log(`Server listening on port ${port}`));
 
-app.get('/', (req, res) => res.send('Gemini Bot is Live and Running!'));
-app.listen(port, () => {
-    console.log(`✅ Server is listening on port ${port}`);
+// ၂။ Bot Setup
+const botToken = process.env.TELEGRAM_BOT_TOKEN;
+if (!botToken) {
+    console.error("❌ ERROR: TELEGRAM_BOT_TOKEN missing!");
+    process.exit(1);
+}
+const bot = new Telegraf(botToken);
+
+// ၃။ ပင်မ Menu (Main Menu)
+const mainMenu = Markup.inlineKeyboard([
+    [Markup.button.callback('🛒 VPN ဝယ်ယူရန်', 'vpn_service'), Markup.button.callback('🖥️ POS System', 'pos_service')],
+    [Markup.button.callback('📞 ဆက်သွယ်ရန်', 'contact_admin'), Markup.button.callback('💳 ငွေပေးချေမှု', 'payment_info')]
+]);
+
+bot.start((ctx) => {
+    ctx.reply('မင်္ဂလာပါ။ SJ Web Development မှ ကြိုဆိုပါတယ်။ ကျွန်ုပ်တို့၏ ဝန်ဆောင်မှုများကို အောက်ပါ Menu တွင် ရွေးချယ်နိုင်ပါသည် -', mainMenu);
 });
 
-// ၂။ Environment Variables စစ်ဆေးခြင်း
-// သတိပြုရန် - .env ဖိုင် ဆောက်စရာမလိုပါ။ B4A Dashboard Settings ထဲတွင်သာ ထည့်ပါ။
-const botToken = process.env.TELEGRAM_BOT_TOKEN;
-const geminiKey = process.env.GEMINI_API_KEY;
+// ၄။ ခလုတ်နှိပ်မှုများကို ကိုင်တွယ်ခြင်း (Actions)
+bot.action('vpn_service', (ctx) => {
+    ctx.reply('🌐 VPN ဝန်ဆောင်မှုများ -\n- 1 Month: 5,000 MMK\n- 6 Months: 25,000 MMK\n\nဝယ်ယူရန် Admin ကို ဆက်သွယ်ပါ။', mainMenu);
+});
 
-console.log("Checking Environment Variables...");
-if (!botToken) console.error("❌ ERROR: TELEGRAM_BOT_TOKEN is missing in B4A Dashboard!");
-if (!geminiKey) console.error("❌ ERROR: GEMINI_API_KEY is missing in B4A Dashboard!");
+bot.action('pos_service', (ctx) => {
+    ctx.reply('🖥️ POS System (Restaurant / Retail) -\n- Offline Mode ပါဝင်သည်။\n- Bluetooth Printing ရသည်။\n\nအသေးစိတ်သိလိုပါက ဖုန်း 09757541448 ကို ဆက်သွယ်ပါ။', mainMenu);
+});
 
-// ၃။ Bot နှင့် AI ကို Initialize လုပ်ခြင်း
-if (botToken && geminiKey) {
-    const bot = new Telegraf(botToken);
-    const genAI = new GoogleGenerativeAI(geminiKey);
+bot.action('contact_admin', (ctx) => {
+    ctx.reply('👨‍💻 Admin နှင့် တိုက်ရိုက်စကားပြောရန် -\nTelegram: @smartpossystem\nဖုန်း: 09757541448', mainMenu);
+});
 
-    // Model နာမည်ကို models/ ပါအောင် အတိအကျရေးပါ (404 Error မတက်အောင်ဖြစ်သည်)
-    const model = genAI.getGenerativeModel({ 
-        model: "models/gemini-1.5-flash" 
-    });
+bot.action('payment_info', (ctx) => {
+    ctx.reply('💳 ငွေပေးချေရန် -\n- KPay: 09757541448 \n(ငွေလွှဲပြီးလျှင် Screenshot ပို့ပေးပါ)', mainMenu);
+});
 
-    // Start Command
-    bot.start((ctx) => ctx.reply('မင်္ဂလာပါ။ Gemini AI Bot အဆင်သင့်ရှိပါပြီ။ ဘာကူညီပေးရမလဲခင်ဗျာ?'));
+// ၅။ Bot Launch
+bot.launch()
+    .then(() => console.log("🚀 Selling Bot is Online!"))
+    .catch(err => console.error("Launch Error:", err.message));
 
-    // စာသားများကို Gemini ဖြင့် တုံ့ပြန်ခြင်း
-    bot.on('text', async (ctx) => {
-        try {
-            await ctx.sendChatAction('typing');
-            const result = await model.generateContent(ctx.message.text);
-            const response = await result.response;
-            await ctx.reply(response.text());
-        } catch (error) {
-            console.error("Gemini Error:", error.message);
-            // 404 Error ဖြစ်ပါက API Key ကို ပြန်စစ်ရန် သတိပေးခြင်း
-            ctx.reply("တောင်းပန်ပါတယ်၊ အမှားတစ်ခုရှိနေလို့ပါ။ (API Key သို့မဟုတ် Model Name ကို စစ်ဆေးပါ)");
-        }
-    });
-
-    // ၄။ Bot Launch (Conflict Error 409 မဖြစ်အောင် ကိုင်တွယ်ခြင်း)
-    bot.launch()
-        .then(() => console.log("🚀 Telegram Bot is successfully launched!"))
-        .catch((err) => {
-            if (err.message.includes('409')) {
-                console.error("❌ Conflict 409: သင့်စက် (Local) ထဲက Bot ကို အရင်ပိတ်ပေးပါ။");
-            } else {
-                console.error("❌ Launch Error:", err.message);
-            }
-        });
-
-    // ပုံမှန်အတိုင်း ပိတ်နိုင်ရန်
-    process.once('SIGINT', () => bot.stop('SIGINT'));
-    process.once('SIGTERM', () => bot.stop('SIGTERM'));
-
-} else {
-    console.error("❌ Bot ကို Launch မလုပ်နိုင်ပါ။ Keys များ မပြည့်စုံပါ။");
-}
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
