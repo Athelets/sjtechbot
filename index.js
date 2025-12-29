@@ -14,8 +14,8 @@ if (!botToken) {
 const bot = new Telegraf(botToken);
 
 // --- ပုံများ၏ Link များ (သင့် GitHub Link များဖြင့် အစားထိုးပါ) ---
-const VPN_IMAGE = 'https://raw.githubusercontent.com/your-username/your-repo/main/images/vpn_banner.png';
-const POS_IMAGE = 'https://raw.githubusercontent.com/your-username/your-repo/main/images/vpn_banner.png';
+const VPN_IMAGE = 'https://raw.githubusercontent.com/Athelets/sjtechbot/blob/main/images/vpn_banner.png';
+const POS_IMAGE = 'https://raw.githubusercontent.com/Athelets/sjtechbot/blob/main/images/vpn_banner.png';
 
 const mainMenu = Markup.inlineKeyboard([
     [Markup.button.callback('🛒 VPN ဝယ်ယူရန်', 'vpn_service'), Markup.button.callback('🖥️ POS System', 'pos_service')],
